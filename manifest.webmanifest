@@ -1,6 +1,6 @@
 {
-  "name": "Strict TKD Performance Coach",
-  "short_name": "TKD Coach",
+  "name": "TKD Performance Log",
+  "short_name": "TKD Log",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f5f6f3",
