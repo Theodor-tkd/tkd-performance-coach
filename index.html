@@ -228,6 +228,7 @@ input[type="number"],
 input[type="text"],
 input[type="url"],
 input[type="date"],
+input[type="time"],
 textarea {
   width: 100%;
   min-height: 38px;
@@ -364,6 +365,7 @@ summary {
 .history-section,
 .week-section,
 .planner-section,
+.daily-status-section,
 .backup-section,
 .ai-section,
 .engine-details {
@@ -428,6 +430,18 @@ summary {
 
 .progress-card strong {
   font-size: 1.25rem;
+}
+
+.compact-progress {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.form-note {
+  min-height: 20px;
+  margin: -4px 0 12px;
+  color: var(--yellow);
+  font-size: 0.84rem;
+  font-weight: 800;
 }
 
 .date-jump {
@@ -672,17 +686,45 @@ pre {
                 <input name="sleepQuality" type="number" min="1" max="5" step="1" value="4" />
               </label>
               <label>
+                Garmin søvnscore
+                <input name="sleepScore" type="number" min="0" max="100" step="1" value="0" />
+              </label>
+              <label>
                 HRV
                 <select name="hrvStatus">
                   <option value="high">Hoy</option>
+                  <option value="balanced">Balanced</option>
                   <option value="normal">Normal</option>
+                  <option value="unbalanced">Ubalansert</option>
                   <option value="low">Lav</option>
                   <option value="very_low">Svaert lav</option>
+                  <option value="unknown">Ukjent</option>
                 </select>
+              </label>
+              <label>
+                HRV ms
+                <input name="hrvValue" type="number" min="0" max="200" step="1" value="0" />
+              </label>
+              <label>
+                Hvilepuls
+                <input name="restingHr" type="number" min="25" max="120" step="1" value="0" />
               </label>
               <label>
                 Hvilepuls avvik
                 <input name="restingHrDelta" type="number" min="-20" max="30" step="1" value="0" />
+              </label>
+              <label>
+                Body Battery morgen
+                <input name="bodyBatteryMorning" type="number" min="0" max="100" step="1" value="0" />
+              </label>
+              <label>
+                Stress
+                <select name="stressLevel">
+                  <option value="unknown">Ukjent</option>
+                  <option value="low">Lav</option>
+                  <option value="moderate">Moderat</option>
+                  <option value="high">Høy</option>
+                </select>
               </label>
               <label>
                 Energi 1-5
@@ -705,6 +747,53 @@ pre {
                 <input name="backPain" type="number" min="0" max="10" step="1" value="1" />
               </label>
             </div>
+
+            <details class="garmin-details" open>
+              <summary>Garmin søvn/status</summary>
+              <div class="field-grid">
+                <label>
+                  Dato
+                  <input name="statusDate" type="date" />
+                </label>
+                <label>
+                  Body Battery kveld
+                  <input name="bodyBatteryEvening" type="number" min="0" max="100" step="1" value="0" />
+                </label>
+                <label>
+                  Leggetid
+                  <input name="bedtime" type="time" />
+                </label>
+                <label>
+                  Oppvåkning
+                  <input name="wakeTime" type="time" />
+                </label>
+                <label>
+                  REM timer
+                  <input name="remSleepHours" type="number" min="0" max="12" step="0.1" value="0" />
+                </label>
+                <label>
+                  Dyp søvn timer
+                  <input name="deepSleepHours" type="number" min="0" max="12" step="0.1" value="0" />
+                </label>
+                <label>
+                  Lett søvn timer
+                  <input name="lightSleepHours" type="number" min="0" max="12" step="0.1" value="0" />
+                </label>
+                <label>
+                  Våken tid timer
+                  <input name="awakeHours" type="number" min="0" max="12" step="0.1" value="0" />
+                </label>
+                <label class="wide">
+                  Kommentar
+                  <textarea name="statusNotes" rows="2" placeholder="F.eks. Garmin sier dårlig søvn, våknet ofte, reise, stress."></textarea>
+                </label>
+              </div>
+              <p id="sleepStageWarning" class="form-note"></p>
+              <div class="button-row">
+                <button type="button" id="saveDailyStatus">Lagre Garmin-status</button>
+                <span id="dailyStatusSaveStatus" class="muted-inline">Ikke lagret ennå</span>
+              </div>
+            </details>
 
             <details>
               <summary>Belastningstrender</summary>
@@ -1022,10 +1111,52 @@ pre {
                 <span>Dager kcal logget</span>
                 <strong id="calorieDaysLogged">-</strong>
               </div>
+              <div class="progress-card">
+                <span>Søvnscore 7d</span>
+                <strong id="avgSleepScore7">-</strong>
+              </div>
+              <div class="progress-card">
+                <span>HRV 7d</span>
+                <strong id="avgHrv7">-</strong>
+              </div>
+              <div class="progress-card">
+                <span>Body Battery 7d</span>
+                <strong id="avgBodyBattery7">-</strong>
+              </div>
+              <div class="progress-card">
+                <span>Statusdager 7d</span>
+                <strong id="dailyStatusDays7">-</strong>
+              </div>
             </div>
             <ul id="progressFlags"></ul>
             <h3>Coachens historikk-vurdering</h3>
             <ul id="historyRecommendations"></ul>
+          </section>
+
+          <section class="daily-status-section">
+            <div class="section-title">
+              <h2>Garmin-status</h2>
+              <span id="dailyStatusSummary">Ingen status lagret i dag</span>
+            </div>
+            <div class="progress-grid compact-progress">
+              <div class="progress-card">
+                <span>Søvn</span>
+                <strong id="latestSleepStatus">-</strong>
+              </div>
+              <div class="progress-card">
+                <span>Søvnstadier</span>
+                <strong id="latestSleepStages">-</strong>
+              </div>
+              <div class="progress-card">
+                <span>HRV / hvilepuls</span>
+                <strong id="latestHrvResting">-</strong>
+              </div>
+              <div class="progress-card">
+                <span>Battery / stress</span>
+                <strong id="latestBatteryStress">-</strong>
+              </div>
+            </div>
+            <ul id="dailyStatusFlags"></ul>
           </section>
 
           <section class="week-section">
@@ -1457,13 +1588,16 @@ pre {
 
     const sleepHours = Number(input.sleepHours || 0);
     const sleepQuality = Number(input.sleepQuality || 3);
+    const sleepScore = Number(input.sleepScore || 0);
     const energy = Number(input.energy || 3);
     const legFatigue = Number(input.legFatigue || 2);
     const soreness = Number(input.soreness || 2);
     const backPain = Number(input.backPain || 0);
     const restingHrDelta = Number(input.restingHrDelta || 0);
+    const bodyBatteryMorning = Number(input.bodyBatteryMorning || 0);
     const motivation = Number(input.motivation || 3);
     const hrvStatus = input.hrvStatus || "normal";
+    const stressLevel = input.stressLevel || "unknown";
 
     if (sleepHours >= 8) {
       score += 8;
@@ -1488,9 +1622,24 @@ pre {
       pullsDown.push("Søvnkvaliteten trekker ned readiness.");
     }
 
+    if (sleepScore >= 85) {
+      score += 5;
+      pullsUp.push("Garmin søvnscore er sterk.");
+    } else if (sleepScore > 0 && sleepScore < 60) {
+      score -= 10;
+      pullsDown.push("Garmin søvnscore er lav. Ikke jag hardhet på dårlig recovery.");
+      redSignals.push("søvnscore");
+    } else if (sleepScore > 0 && sleepScore < 70) {
+      score -= 5;
+      pullsDown.push("Garmin søvnscore er svakere enn ønsket.");
+    }
+
     if (hrvStatus === "high") {
       score += 7;
       pullsUp.push("HRV er sterk.");
+    } else if (hrvStatus === "unbalanced") {
+      score -= 7;
+      pullsDown.push("HRV er ubalansert.");
     } else if (hrvStatus === "low") {
       score -= 12;
       pullsDown.push("HRV er lav.");
@@ -1511,6 +1660,24 @@ pre {
     } else if (restingHrDelta >= 5) {
       score -= 8;
       pullsDown.push("Hvilepuls er høyere enn ønsket.");
+    }
+
+    if (bodyBatteryMorning >= 80) {
+      score += 4;
+      pullsUp.push("Body Battery er høy nok til kvalitet hvis resten støtter det.");
+    } else if (bodyBatteryMorning > 0 && bodyBatteryMorning < 35) {
+      score -= 9;
+      pullsDown.push("Body Battery er lav. Ikke forveksle vilje med friskhet.");
+    } else if (bodyBatteryMorning > 0 && bodyBatteryMorning < 50) {
+      score -= 4;
+      pullsDown.push("Body Battery er moderat lav.");
+    }
+
+    if (stressLevel === "high") {
+      score -= 6;
+      pullsDown.push("Garmin stress er høyt. Hardøkt må ha klar prestasjonsoverføring.");
+    } else if (stressLevel === "low") {
+      pullsUp.push("Stressnivået støtter bedre restitusjon.");
     }
 
     if (energy >= 4) {
@@ -2626,6 +2793,7 @@ pre {
 })(typeof self !== "undefined" ? self : this, function () {
   const STORAGE_KEY = "strictTkdTrainingLog.v1";
   const DAILY_ENERGY_KEY = "strictTkdDailyEnergy.v1";
+  const DAILY_STATUS_KEY = "strictTkdDailyStatus.v1";
 
   const sessionTypes = {
     base: "Basis",
@@ -2697,10 +2865,26 @@ pre {
     }
   }
 
+  function readDailyStatuses() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DAILY_STATUS_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed.map(normalizeDailyStatus).sort(sortDailyDesc) : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
   function writeDailyEnergy(entries) {
     localStorage.setItem(
       DAILY_ENERGY_KEY,
       JSON.stringify(entries.map(normalizeDailyEnergy).sort(sortDailyDesc))
+    );
+  }
+
+  function writeDailyStatuses(entries) {
+    localStorage.setItem(
+      DAILY_STATUS_KEY,
+      JSON.stringify(entries.map(normalizeDailyStatus).sort(sortDailyDesc))
     );
   }
 
@@ -2798,6 +2982,43 @@ pre {
     };
   }
 
+  function normalizeDailyStatus(entry) {
+    const totalSleepHours = toNumber(entry.totalSleepHours ?? entry.sleepHours);
+    const remSleepHours = toNumber(entry.remSleepHours);
+    const deepSleepHours = toNumber(entry.deepSleepHours);
+    const lightSleepHours = toNumber(entry.lightSleepHours);
+    const awakeHours = toNumber(entry.awakeHours);
+    const stageTotalHours = round1(remSleepHours + deepSleepHours + lightSleepHours + awakeHours);
+    return {
+      date: entry.date || todayIso(),
+      bedtime: entry.bedtime || "",
+      wakeTime: entry.wakeTime || "",
+      totalSleepHours,
+      sleepScore: clampNumber(entry.sleepScore, 0, 100),
+      sleepQuality: clampNumber(entry.sleepQuality, 0, 5),
+      remSleepHours,
+      deepSleepHours,
+      lightSleepHours,
+      awakeHours,
+      stageTotalHours,
+      stageMismatchHours: totalSleepHours ? round1(stageTotalHours - totalSleepHours) : 0,
+      hrvValue: toNumber(entry.hrvValue),
+      hrvStatus: entry.hrvStatus || "unknown",
+      restingHr: toNumber(entry.restingHr),
+      restingHrDelta: toNumber(entry.restingHrDelta),
+      bodyBatteryMorning: clampNumber(entry.bodyBatteryMorning, 0, 100),
+      bodyBatteryEvening: clampNumber(entry.bodyBatteryEvening, 0, 100),
+      stressLevel: entry.stressLevel || "unknown",
+      energy: clampNumber(entry.energy, 0, 10),
+      motivation: clampNumber(entry.motivation, 0, 10),
+      backPain: clampNumber(entry.backPain, 0, 10),
+      legSoreness: clampNumber(entry.legSoreness ?? entry.legFatigue, 0, 10),
+      upperSoreness: clampNumber(entry.upperSoreness, 0, 10),
+      notes: entry.notes || "",
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
   function saveDailyEnergy(entry) {
     const entries = readDailyEnergy();
     const next = normalizeDailyEnergy(entry);
@@ -2811,17 +3032,35 @@ pre {
     return next;
   }
 
+  function saveDailyStatus(entry) {
+    const entries = readDailyStatuses();
+    const next = normalizeDailyStatus(entry);
+    const index = entries.findIndex((item) => item.date === next.date);
+    if (index >= 0) {
+      entries[index] = next;
+    } else {
+      entries.push(next);
+    }
+    writeDailyStatuses(entries);
+    return next;
+  }
+
   function getDailyEnergyForDate(date) {
     return readDailyEnergy().find((entry) => entry.date === date) || normalizeDailyEnergy({ date });
+  }
+
+  function getDailyStatusForDate(date) {
+    return readDailyStatuses().find((entry) => entry.date === date) || normalizeDailyStatus({ date });
   }
 
   function createBackup(extra) {
     return {
       app: "strict-tkd-performance-coach",
-      schemaVersion: 2,
+      schemaVersion: 3,
       exportedAt: new Date().toISOString(),
       sessions: readSessions(),
       dailyEnergy: readDailyEnergy(),
+      dailyStatuses: readDailyStatuses(),
       extra: extra || {},
     };
   }
@@ -2832,11 +3071,14 @@ pre {
     }
     const sessions = Array.isArray(backup.sessions) ? backup.sessions : [];
     const dailyEnergy = Array.isArray(backup.dailyEnergy) ? backup.dailyEnergy : [];
+    const dailyStatuses = Array.isArray(backup.dailyStatuses) ? backup.dailyStatuses : [];
     writeSessions(sessions);
     writeDailyEnergy(dailyEnergy);
+    writeDailyStatuses(dailyStatuses);
     return {
       sessions: sessions.length,
       dailyEnergy: dailyEnergy.length,
+      dailyStatuses: dailyStatuses.length,
       schemaVersion: backup.schemaVersion || "unknown",
       extra: backup.extra || {},
     };
@@ -2850,6 +3092,7 @@ pre {
   function clearAll() {
     writeSessions([]);
     writeDailyEnergy([]);
+    writeDailyStatuses([]);
   }
 
   function getSessionsBetween(daysBack, fromDate) {
@@ -2891,6 +3134,9 @@ pre {
     const weeklyHours = minutes(last7) / 60;
     const monthAvgHours = minutes(last28) / 60 / 4;
     const energy7 = analyzeEnergy(last7, 7, today);
+    const dailyStatus7 = analyzeDailyStatus(7, today);
+    const dailyStatus14 = analyzeDailyStatus(14, today);
+    const dailyStatus30 = analyzeDailyStatus(30, today);
 
     return {
       last7,
@@ -2925,10 +3171,13 @@ pre {
           .filter(Boolean)
       ),
       calories7: energy7,
+      dailyStatus7,
+      dailyStatus14,
+      dailyStatus30,
       byType7,
       byType28,
-      progressFlags: buildProgressFlags(last7, last28, weeklyHours),
-      recommendations: buildHistoryRecommendations(last7, last28, weeklyHours),
+      progressFlags: buildProgressFlags(last7, last28, weeklyHours, dailyStatus7),
+      recommendations: buildHistoryRecommendations(last7, last28, weeklyHours, dailyStatus7),
     };
   }
 
@@ -2972,6 +3221,25 @@ pre {
     };
   }
 
+  function analyzeDailyStatus(days, today) {
+    const entries = filterDailyLastDays(readDailyStatuses(), days, today);
+    return {
+      entries,
+      daysLogged: entries.length,
+      avgSleepHours: average(entries.map((entry) => entry.totalSleepHours).filter(Boolean)),
+      avgSleepScore: average(entries.map((entry) => entry.sleepScore).filter(Boolean)),
+      avgHrv: average(entries.map((entry) => entry.hrvValue).filter(Boolean)),
+      avgRestingHr: average(entries.map((entry) => entry.restingHr).filter(Boolean)),
+      avgBodyBatteryMorning: average(entries.map((entry) => entry.bodyBatteryMorning).filter(Boolean)),
+      avgBackPain: average(entries.map((entry) => entry.backPain).filter(Boolean)),
+      lowSleepDays: entries.filter((entry) => entry.totalSleepHours && entry.totalSleepHours < 7).length,
+      lowSleepScoreDays: entries.filter((entry) => entry.sleepScore && entry.sleepScore < 60).length,
+      lowHrvDays: entries.filter((entry) => ["low", "very_low", "unbalanced"].includes(entry.hrvStatus)).length,
+      highStressDays: entries.filter((entry) => entry.stressLevel === "high").length,
+      highBackPainDays: entries.filter((entry) => entry.backPain >= 4).length,
+    };
+  }
+
   function filterDailyLastDays(entries, days, today) {
     const end = startOfDay(today || todayIso());
     const start = new Date(end);
@@ -2992,6 +3260,12 @@ pre {
 
   function round1(value) {
     return Math.round((value || 0) * 10) / 10;
+  }
+
+  function clampNumber(value, min, max) {
+    const number = toNumber(value);
+    if (!number) return 0;
+    return Math.min(max, Math.max(min, number));
   }
 
   function average(values) {
@@ -3038,7 +3312,7 @@ pre {
     }, {});
   }
 
-  function buildProgressFlags(last7, last28, weeklyHours) {
+  function buildProgressFlags(last7, last28, weeklyHours, dailyStatus7) {
     const flags = [];
     const hard7 = last7.filter((session) => session.hard).length;
     const sparringQuality = average(
@@ -3070,10 +3344,19 @@ pre {
     } else if (rpeSpecific === "rising") {
       flags.push("RPE pa spesifikke intervaller stiger. Hold eller reduser volum.");
     }
+    if (dailyStatus7?.lowSleepScoreDays >= 2) {
+      flags.push("Søvnscore er lav flere dager. Recovery-data peker ikke mot mer hardhet.");
+    }
+    if (dailyStatus7?.lowHrvDays >= 2) {
+      flags.push("HRV er svak/ubalansert flere dager. Neste harde økt må fortjenes av bedre signaler.");
+    }
+    if (dailyStatus7?.highStressDays >= 2) {
+      flags.push("Stress er høyt flere dager. Ikke fyll uka med ekstra hard kondisjon.");
+    }
     return flags;
   }
 
-  function buildHistoryRecommendations(last7, last28, weeklyHours) {
+  function buildHistoryRecommendations(last7, last28, weeklyHours, dailyStatus7) {
     const recommendations = [];
     const hard7 = last7.filter((session) => session.hard).length;
     const strength7 = countTypes(last7, ["strength", "upper_strength", "heavy_legs"]);
@@ -3102,6 +3385,12 @@ pre {
     if (backTrend === "rising") {
       recommendations.push("Ryggtrend gar feil vei. Deload aksial belastning og rotasjon.");
     }
+    if (dailyStatus7?.avgSleepScore && dailyStatus7.avgSleepScore < 70) {
+      recommendations.push("Søvnscore snitt er lav. Legg hardøkter etter bedre søvn, ikke etter motivasjon.");
+    }
+    if (dailyStatus7?.avgBodyBatteryMorning && dailyStatus7.avgBodyBatteryMorning < 50) {
+      recommendations.push("Body Battery snitt er lav. Mer volum må være lett base, teknikk eller recovery.");
+    }
     if (!recommendations.length) {
       recommendations.push("Hold strukturen. Oking skal skje kontrollert, ikke fordi du foler deg motivert.");
     }
@@ -3122,6 +3411,7 @@ pre {
       history: analysis,
       recentSessions: analysis.last28,
       dailyEnergy: analysis.calories7.entries,
+      dailyStatuses: analysis.dailyStatus30.entries,
       safetyRules: [
         "Rygg 5+/10: ingen hard kondisjon, tung styrke eller aggressiv TKD-rotasjon.",
         "Ikke mer enn 2 harde dager pa rad.",
@@ -3138,15 +3428,20 @@ pre {
   return {
     STORAGE_KEY,
     DAILY_ENERGY_KEY,
+    DAILY_STATUS_KEY,
     sessionTypes,
     todayIso,
     readSessions,
     writeSessions,
     readDailyEnergy,
     writeDailyEnergy,
+    readDailyStatuses,
+    writeDailyStatuses,
     saveSession,
     saveDailyEnergy,
+    saveDailyStatus,
     getDailyEnergyForDate,
+    getDailyStatusForDate,
     createBackup,
     restoreBackup,
     deleteSession,
@@ -3802,6 +4097,7 @@ pre {
     resetLockedPlanForm();
     fillDailyEnergyForm(TrainingLog.getDailyEnergyForDate(editDateInput.value));
     setFormFromExample(CoachEngine.examples.greenWorldCup);
+    loadDailyStatusForDate(TrainingLog.todayIso(), true);
     bindEvents();
     render();
   }
@@ -3824,6 +4120,18 @@ pre {
     dailyEnergyForm.addEventListener("submit", (event) => {
       event.preventDefault();
       TrainingLog.saveDailyEnergy(readDailyEnergyForm());
+      render();
+    });
+
+    $("#saveDailyStatus").addEventListener("click", () => {
+      const saved = TrainingLog.saveDailyStatus(readDailyStatusForm());
+      fillDailyStatusForm(saved, false);
+      $("#dailyStatusSaveStatus").textContent = `Lagret ${saved.date}`;
+      render();
+    });
+
+    coachForm.elements.statusDate.addEventListener("change", () => {
+      loadDailyStatusForDate(coachForm.elements.statusDate.value || TrainingLog.todayIso(), false);
       render();
     });
 
@@ -3940,8 +4248,14 @@ pre {
     const checkIn = {
       sleepHours: numberValue(coachForm, "sleepHours"),
       sleepQuality: numberValue(coachForm, "sleepQuality"),
+      sleepScore: numberValue(coachForm, "sleepScore"),
       hrvStatus: coachForm.elements.hrvStatus.value,
+      hrvValue: numberValue(coachForm, "hrvValue"),
+      restingHr: numberValue(coachForm, "restingHr"),
       restingHrDelta: numberValue(coachForm, "restingHrDelta"),
+      bodyBatteryMorning: numberValue(coachForm, "bodyBatteryMorning"),
+      bodyBatteryEvening: numberValue(coachForm, "bodyBatteryEvening"),
+      stressLevel: coachForm.elements.stressLevel.value,
       energy: numberValue(coachForm, "energy"),
       motivation: numberValue(coachForm, "motivation"),
       legFatigue: numberValue(coachForm, "legFatigue"),
@@ -4049,6 +4363,33 @@ pre {
     };
   }
 
+  function readDailyStatusForm() {
+    return {
+      date: coachForm.elements.statusDate.value || TrainingLog.todayIso(),
+      bedtime: coachForm.elements.bedtime.value,
+      wakeTime: coachForm.elements.wakeTime.value,
+      totalSleepHours: numberValue(coachForm, "sleepHours"),
+      sleepQuality: numberValue(coachForm, "sleepQuality"),
+      sleepScore: numberValue(coachForm, "sleepScore"),
+      remSleepHours: numberValue(coachForm, "remSleepHours"),
+      deepSleepHours: numberValue(coachForm, "deepSleepHours"),
+      lightSleepHours: numberValue(coachForm, "lightSleepHours"),
+      awakeHours: numberValue(coachForm, "awakeHours"),
+      hrvValue: numberValue(coachForm, "hrvValue"),
+      hrvStatus: coachForm.elements.hrvStatus.value,
+      restingHr: numberValue(coachForm, "restingHr"),
+      restingHrDelta: numberValue(coachForm, "restingHrDelta"),
+      bodyBatteryMorning: numberValue(coachForm, "bodyBatteryMorning"),
+      bodyBatteryEvening: numberValue(coachForm, "bodyBatteryEvening"),
+      stressLevel: coachForm.elements.stressLevel.value,
+      energy: numberValue(coachForm, "energy"),
+      motivation: numberValue(coachForm, "motivation"),
+      backPain: numberValue(coachForm, "backPain"),
+      legSoreness: numberValue(coachForm, "soreness"),
+      notes: coachForm.elements.statusNotes.value,
+    };
+  }
+
   function saveCompetition() {
     WeeklyPlanner.writeCompetition({
       date: plannerForm.elements.competitionDate.value,
@@ -4093,6 +4434,62 @@ pre {
     dailyEnergyForm.elements.restingCalories.value = entry.restingCalories || 0;
     dailyEnergyForm.elements.caloriesConsumed.value = entry.caloriesConsumed || 0;
     dailyEnergyForm.elements.notes.value = entry.notes || "";
+  }
+
+  function loadDailyStatusForDate(date, preserveCoachDefaults) {
+    const saved = TrainingLog.readDailyStatuses().find((entry) => entry.date === date);
+    fillDailyStatusForm(saved || { date }, preserveCoachDefaults);
+    $("#dailyStatusSaveStatus").textContent = saved ? `Lagret ${saved.date}` : "Ikke lagret ennå";
+  }
+
+  function fillDailyStatusForm(entry, preserveCoachDefaults) {
+    const status = entry || { date: TrainingLog.todayIso() };
+    coachForm.elements.statusDate.value = status.date || TrainingLog.todayIso();
+    setStatusValue("bedtime", status.bedtime || "");
+    setStatusValue("wakeTime", status.wakeTime || "");
+    setStatusValue("sleepScore", status.sleepScore || 0);
+    setStatusValue("remSleepHours", status.remSleepHours || 0);
+    setStatusValue("deepSleepHours", status.deepSleepHours || 0);
+    setStatusValue("lightSleepHours", status.lightSleepHours || 0);
+    setStatusValue("awakeHours", status.awakeHours || 0);
+    setStatusValue("hrvValue", status.hrvValue || 0);
+    setStatusValue("restingHr", status.restingHr || 0);
+    setStatusValue("bodyBatteryMorning", status.bodyBatteryMorning || 0);
+    setStatusValue("bodyBatteryEvening", status.bodyBatteryEvening || 0);
+    setStatusValue("stressLevel", status.stressLevel || "unknown");
+    setStatusValue("statusNotes", status.notes || "");
+
+    if (!preserveCoachDefaults || status.totalSleepHours) {
+      setStatusValue("sleepHours", status.totalSleepHours || 0);
+    }
+    if (!preserveCoachDefaults || status.sleepQuality) {
+      setStatusValue("sleepQuality", status.sleepQuality || 3);
+    }
+    if (status.hrvStatus) {
+      setStatusValue("hrvStatus", status.hrvStatus);
+    }
+    if (!preserveCoachDefaults || status.restingHrDelta) {
+      setStatusValue("restingHrDelta", status.restingHrDelta || 0);
+    }
+    if (!preserveCoachDefaults || status.energy) {
+      setStatusValue("energy", status.energy || 4);
+    }
+    if (!preserveCoachDefaults || status.motivation) {
+      setStatusValue("motivation", status.motivation || 5);
+    }
+    if (!preserveCoachDefaults || status.backPain) {
+      setStatusValue("backPain", status.backPain || 1);
+    }
+    if (!preserveCoachDefaults || status.legSoreness) {
+      setStatusValue("soreness", status.legSoreness || 1);
+    }
+    renderSleepStageWarning(status);
+  }
+
+  function setStatusValue(name, value) {
+    if (coachForm.elements[name]) {
+      coachForm.elements[name].value = value;
+    }
   }
 
   function resetSessionForm() {
@@ -4174,6 +4571,7 @@ pre {
     renderList("#cuts", result.cutsIfTooMuch, "Kutt volum for kvalitet.");
 
     renderHistory(history);
+    renderDailyStatus(history);
     renderWeek(history);
     renderSelectedDate();
     renderPlanner(history);
@@ -4203,8 +4601,87 @@ pre {
     $("#restingCalories7").textContent = `${history.calories7.restingBurned} kcal`;
     $("#consumedCalories7").textContent = `${history.calories7.consumed} kcal`;
     $("#calorieDaysLogged").textContent = `${history.calories7.daysLogged}/7`;
+    $("#avgSleepScore7").textContent = history.dailyStatus7.avgSleepScore
+      ? `${history.dailyStatus7.avgSleepScore}/100`
+      : "-";
+    $("#avgHrv7").textContent = history.dailyStatus7.avgHrv ? `${history.dailyStatus7.avgHrv} ms` : "-";
+    $("#avgBodyBattery7").textContent = history.dailyStatus7.avgBodyBatteryMorning
+      ? `${history.dailyStatus7.avgBodyBatteryMorning}/100`
+      : "-";
+    $("#dailyStatusDays7").textContent = `${history.dailyStatus7.daysLogged}/7`;
     renderList("#progressFlags", history.progressFlags, "Ikke nok data ennå. Logg oktene, ellers gjetter coachen.");
     renderList("#historyRecommendations", history.recommendations);
+  }
+
+  function renderDailyStatus(history) {
+    const date = coachForm.elements.statusDate.value || TrainingLog.todayIso();
+    const saved = TrainingLog.readDailyStatuses().find((entry) => entry.date === date);
+    const live = readDailyStatusForm();
+    const preview = live;
+    renderSleepStageWarning(live);
+    $("#dailyStatusSummary").textContent = saved
+      ? `${date}: score ${preview.sleepScore || "-"} / søvn ${preview.totalSleepHours || "-"} t`
+      : `${date}: ikke lagret`;
+    $("#latestSleepStatus").textContent = `${preview.totalSleepHours || "-"} t / score ${
+      preview.sleepScore || "-"
+    }`;
+    $("#latestSleepStages").textContent = `REM ${preview.remSleepHours || 0} / dyp ${
+      preview.deepSleepHours || 0
+    } / lett ${preview.lightSleepHours || 0}`;
+    $("#latestHrvResting").textContent = `${preview.hrvValue || "-"} ms / ${
+      preview.restingHr || "-"
+    } bpm`;
+    $("#latestBatteryStress").textContent = `${preview.bodyBatteryMorning || "-"} -> ${
+      preview.bodyBatteryEvening || "-"
+    } / ${stressLabel(preview.stressLevel)}`;
+    renderList("#dailyStatusFlags", buildDailyStatusFlags(readDailyStatusForm(), history));
+  }
+
+  function renderSleepStageWarning(status) {
+    const totalSleep = Number(status.totalSleepHours || status.sleepHours || 0);
+    const stageTotal = Number(status.stageTotalHours || 0) ||
+      Number(status.remSleepHours || 0) +
+        Number(status.deepSleepHours || 0) +
+        Number(status.lightSleepHours || 0) +
+        Number(status.awakeHours || 0);
+    const mismatch = Math.round((stageTotal - totalSleep) * 10) / 10;
+    if (!totalSleep || !stageTotal || Math.abs(mismatch) <= 0.3) {
+      $("#sleepStageWarning").textContent = "";
+      return;
+    }
+    $("#sleepStageWarning").textContent = `Søvnstadier summerer til ${Math.round(stageTotal * 10) / 10} t, som avviker ${mismatch > 0 ? "+" : ""}${mismatch} t fra total søvn. Lagring er fortsatt tillatt.`;
+  }
+
+  function buildDailyStatusFlags(status, history) {
+    const flags = [];
+    if (status.sleepScore && status.sleepScore < 60) {
+      flags.push("Lav søvnscore. Ikke bruk grønn følelse som bevis på at hardøkt er smart.");
+    }
+    if (status.totalSleepHours && status.totalSleepHours < 7) {
+      flags.push("Søvn under 7 timer. Kvalitet først, ikke ekstra volum.");
+    }
+    if (["low", "very_low", "unbalanced"].includes(status.hrvStatus)) {
+      flags.push("HRV-status er ikke bra. Hard intervall må ha tydelig grunn.");
+    }
+    if (status.bodyBatteryMorning && status.bodyBatteryMorning < 40) {
+      flags.push("Lav Body Battery på morgenen. Se etter teknikk/base før hard kondisjon.");
+    }
+    if (status.stressLevel === "high") {
+      flags.push("Høyt stressnivå. Ikke legg på ekstra hardhet bare for å føle kontroll.");
+    }
+    if (history.hardSessions7 >= 3 && (status.sleepScore < 70 || status.hrvStatus === "low")) {
+      flags.push("Mange harde økter + svak recovery. Kutt hardhet før du kutter søvn.");
+    }
+    return flags.length ? flags : ["Ingen tydelige Garmin-flagg på valgt dato."];
+  }
+
+  function stressLabel(value) {
+    return {
+      low: "lav",
+      moderate: "moderat",
+      high: "høy",
+      unknown: "ukjent",
+    }[value] || "ukjent";
   }
 
   function renderWeek(history) {
@@ -4406,14 +4883,14 @@ pre {
         targetHours: plannerForm.elements.targetHours.value || "18",
       }),
       note:
-        "Denne backupen inneholder treningslogg, dagskalorier og AI-oppsett. Den er ikke kryptert.",
+        "Denne backupen inneholder treningslogg, Garmin/dagsstatus, dagskalorier, planner og AI-oppsett. Den er ikke kryptert.",
     });
   }
 
   function exportBackupToText() {
     const backup = buildBackup();
     $("#backupText").value = JSON.stringify(backup, null, 2);
-    $("#backupStatus").textContent = `Backup klar: ${backup.sessions.length} okter, ${backup.dailyEnergy.length} dagslogger`;
+    $("#backupStatus").textContent = `Backup klar: ${backup.sessions.length} okter, ${backup.dailyStatuses.length} Garmin-dager, ${backup.dailyEnergy.length} kaloridager`;
   }
 
   async function copyBackupText() {
@@ -4494,8 +4971,9 @@ pre {
     }
     resetSessionForm();
     fillDailyEnergyForm(TrainingLog.getDailyEnergyForDate(editDateInput.value || TrainingLog.todayIso()));
+    loadDailyStatusForDate(coachForm.elements.statusDate.value || TrainingLog.todayIso(), true);
     render();
-    $("#backupStatus").textContent = `Importert: ${result.sessions} okter, ${result.dailyEnergy} dagslogger`;
+    $("#backupStatus").textContent = `Importert: ${result.sessions} okter, ${result.dailyStatuses} Garmin-dager, ${result.dailyEnergy} kaloridager`;
   }
 
   init();
