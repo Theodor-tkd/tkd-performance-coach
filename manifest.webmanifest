@@ -1,0 +1,9 @@
+{
+  "name": "Strict TKD Performance Coach",
+  "short_name": "TKD Coach",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f6f3",
+  "theme_color": "#15202b",
+  "description": "Strict performance coach and training log for ITF Taekwon-Do sparring."
+}
